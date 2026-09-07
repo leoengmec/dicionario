@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Monta o projeto do dicionario. Funciona tanto dentro do GitHub Actions
-# quanto num terminal (Codespaces, a-Shell, computador).
+# Monta o projeto do dicionario e o lexico. Roda dentro do GitHub Actions
+# ou em qualquer terminal. NAO escreve nada em .github/ de proposito:
+# o token do Actions nao tem permissao para criar workflows.
 set -euo pipefail
 
 echo "==> escrevendo os arquivos do projeto"
-mkdir -p etl icones .github/workflows
+mkdir -p etl icones
 touch .nojekyll
 
 cat > index.html <<'FIMDOARQUIVO'
@@ -997,21 +998,21 @@ cat > README.md <<'FIMDOARQUIVO'
 Dicionário de português para consulta rápida no iPhone. PWA instalada na tela de
 início, funciona sem rede, busca por prefixo, sem acento e com correção de digitação.
 
-O léxico vem do Wikcionário em português, extraído por
+Léxico: Wikcionário em português, extraído por
 [kaikki.org](https://kaikki.org/ptwiktionary/) com o wiktextract (CC BY-SA).
-**Você não precisa baixar nem processar nada:** o GitHub Actions faz isso na nuvem
-a cada publicação e guarda o resultado em cache.
+Você não baixa nem processa nada: o GitHub Actions monta a base na nuvem.
 
 ## Como funciona
 
 ```
-push na main  ->  Actions baixa o dump  ->  ETL monta data/  ->  publica no Pages
-                        (só na 1ª vez; depois vem do cache)
+Actions -> "Instalar o projeto" -> bash montar.sh
+      escreve os arquivos, baixa o dump, monta data/, commita e faz push
+GitHub Pages (Deploy from a branch: main / root) publica o repositório
 ```
 
-Para reconstruir o léxico com uma extração mais nova: mude o número dentro de
-`LEXICO_VERSAO` e dê push. Ou rode o workflow à mão em Actions → Run workflow.
-Ele também roda sozinho todo dia 1º.
+O léxico é reconstruído só quando `data/` está vazio ou só tem a amostra. Para
+forçar uma reconstrução com extração mais nova, apague a pasta `data/` e rode o
+workflow de novo.
 
 ## Instalar no iPhone
 
@@ -1019,9 +1020,6 @@ Ele também roda sozinho todo dia 1º.
 2. Compartilhar → **Adicionar à Tela de Início**.
 3. Abra pelo ícone, toque em **Base** → **Baixar tudo**.
 4. Teste em modo avião.
-
-O passo 3 garante o offline completo. Sem ele, ficam guardadas só as fatias que
-você já consultou.
 
 ## Arquivos
 
@@ -1031,28 +1029,24 @@ estilo.css            paleta, tipografia
 app.js                busca, navegação, painel da base
 sw.js                 service worker
 manifest.webmanifest  ícone, nome, modo standalone
-LEXICO_VERSAO         mude para forçar reconstrução do léxico
+montar.sh             escreve o projeto e monta o léxico
 etl/localizar_dump.py descobre a URL do dump no kaikki
 etl/construir_lexico.py  dump -> data/indice.json + data/verbetes/*.json
-etl/gerar_amostra.py  65 verbetes de demonstração, para testar sem o dump
-```
-
-## Rodar local, se um dia tiver computador
-
-```bash
-python3 etl/gerar_amostra.py     # base de demonstração
-python3 -m http.server 8080
+etl/gerar_amostra.py  65 verbetes de demonstração, reserva se o dump falhar
 ```
 
 ## Decisões
 
 - **Sem build.** Arquivos estáticos servidos direto. Nada de npm ou bundler.
-- **ETL na nuvem.** O dump tem cerca de 1 GB; processá-lo é trabalho de servidor.
+- **Um workflow só.** O token do Actions não pode criar arquivos em
+  `.github/workflows/`, então nada de segundo workflow gerado por script.
+- **Pages a partir do branch.** Dispensa o pipeline de artefato e mantém o
+  léxico versionado junto com o app.
 - **Busca no rodapé.** Alcance do polegar; o resultado ocupa a tela toda.
 - **Léxico fatiado por duas letras.** Carrega sob demanda e respeita o limite de
   100 MB por arquivo do GitHub.
 - **Tipografia nativa.** Serifa do sistema (New York no iOS) para o conteúdo,
-  sans para a interface. Nenhuma fonte baixada, nada quebra offline.
+  sans para a interface. Nenhuma fonte baixada.
 
 ## Escopo da v1.0
 
@@ -1065,110 +1059,6 @@ node_modules/
 *.jsonl
 *.jsonl.gz
 .DS_Store
-
-FIMDOARQUIVO
-
-cat > LEXICO_VERSAO <<'FIMDOARQUIVO'
-1
-
-FIMDOARQUIVO
-
-cat > .github/workflows/publicar.yml <<'FIMDOARQUIVO'
-name: Montar o léxico e publicar
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-  schedule:
-    - cron: '0 5 1 * *'
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
-jobs:
-  publicar:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Ler a versão do léxico
-        id: versao
-        run: echo "chave=$(tr -d '[:space:]' < LEXICO_VERSAO)" >> "$GITHUB_OUTPUT"
-
-      - name: Recuperar léxico do cache
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: data
-          key: lexico-${{ steps.versao.outputs.chave }}
-
-      - name: Baixar o dump do Wikcionário
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          URL=$(python3 etl/localizar_dump.py)
-          echo "Dump escolhido: $URL"
-          case "$URL" in
-            *.gz) ARQ=dump.jsonl.gz ;;
-            *)    ARQ=dump.jsonl ;;
-          esac
-          curl -fL --retry 4 --retry-delay 10 -o "$ARQ" "$URL"
-          ls -lh "$ARQ"
-          echo "ARQ=$ARQ" >> "$GITHUB_ENV"
-
-      - name: Montar o léxico
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          python3 etl/construir_lexico.py --entrada "$ARQ"
-          rm -f "$ARQ"
-
-      - name: Conferir a base
-        run: |
-          set -euo pipefail
-          test -f data/indice.json
-          test -f data/meta.json
-          python3 - <<'PY'
-          import json
-          indice = json.load(open('data/indice.json', encoding='utf-8'))
-          meta = json.load(open('data/meta.json', encoding='utf-8'))
-          print(f"{len(indice):,} verbetes em {len(meta['fatias'])} fatias".replace(',', '.'))
-          assert len(indice) > 5000, "léxico pequeno demais; algo falhou no ETL"
-          PY
-          du -sh data
-
-      - name: Montar o site
-        run: |
-          set -euo pipefail
-          mkdir -p site
-          cp index.html estilo.css app.js sw.js manifest.webmanifest .nojekyll site/
-          cp -r icones site/
-          cp -r data site/
-          du -sh site
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-      - id: deploy
-        uses: actions/deploy-pages@v4
 
 FIMDOARQUIVO
 
@@ -2023,17 +1913,67 @@ IFICABApAQCIlAAAREoAACIlAACR+r/GQkjg2Z0dbQAAAABJRU5ErkJggg==
 FIMDOARQUIVO
 
 
-echo "==> gerando a base de demonstracao (65 verbetes)"
-python3 etl/gerar_amostra.py
+# ---------------------------------------------------------------- lexico
+
+ja_tem_lexico() {
+  [ -f data/meta.json ] || return 1
+  python3 -c "
+import json, sys
+meta = json.load(open('data/meta.json', encoding='utf-8'))
+sys.exit(0 if not meta.get('amostra') and meta.get('verbetes', 0) > 5000 else 1)
+" || return 1
+}
+
+SALTAR=0
+if [ "${REFAZER:-0}" = "1" ]; then
+  echo "==> REFAZER=1: reconstruindo o lexico do zero"
+  rm -rf data
+elif ja_tem_lexico; then
+  echo "==> lexico ja versionado no repositorio; pulando a reconstrucao"
+  echo "    (para refazer, apague a pasta data/ ou rode com REFAZER=1)"
+  SALTAR=1
+fi
+
+if [ "$SALTAR" != "1" ]; then
+  echo "==> localizando o dump do Wikcionario"
+  if URL=$(python3 etl/localizar_dump.py); then
+    echo "    $URL"
+    case "$URL" in
+      *.gz) ARQ=dump.jsonl.gz ;;
+      *)    ARQ=dump.jsonl ;;
+    esac
+    if curl -fL --retry 4 --retry-delay 10 -o "$ARQ" "$URL"; then
+      ls -lh "$ARQ"
+      python3 etl/construir_lexico.py --entrada "$ARQ"
+      rm -f "$ARQ"
+    else
+      echo "!! o download falhou; publicando com a amostra"
+      python3 etl/gerar_amostra.py
+    fi
+  else
+    echo "!! nao localizei o dump; publicando com a amostra"
+    python3 etl/gerar_amostra.py
+  fi
+fi
+
+echo "==> conferindo a base"
+python3 -c "
+import json
+indice = json.load(open('data/indice.json', encoding='utf-8'))
+meta = json.load(open('data/meta.json', encoding='utf-8'))
+rotulo = 'AMOSTRA' if meta.get('amostra') else 'Wikcionario'
+print(f'    {len(indice)} verbetes ({rotulo}) em {len(meta[\"fatias\"])} fatias')
+"
+du -sh data
 
 echo "==> enviando para o GitHub"
 git config user.name  >/dev/null 2>&1 || git config user.name  "github-actions[bot]"
 git config user.email >/dev/null 2>&1 || git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git add -A
-git commit -m "Dicionario v1.0: PWA offline com lexico do Wikcionario" || echo "(nada novo a enviar)"
+git commit -m "Dicionario: app e lexico" || echo "    (nada novo a enviar)"
 git push origin HEAD
 
 echo
-echo "Pronto. Agora, no app do GitHub:"
-echo "  Settings -> Pages -> Source: GitHub Actions"
-echo "  Actions -> 'Montar o lexico e publicar' -> Run workflow"
+echo "Pronto. Agora:"
+echo "  Settings -> Pages -> Source: Deploy from a branch -> main / (root)"
+echo "  Depois abra https://leoengmec.github.io/dicionario/ no Safari"
