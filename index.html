@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E9EAE4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12191B" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dicionário">
+<meta name="description" content="Dicionário de português para consulta rápida, com funcionamento offline.">
+<title>Dicionário</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icones/icone-180.png">
+<link rel="icon" href="./icones/icone.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./estilo.css">
+</head>
+<body>
+
+<header class="topo">
+  <h1 class="marca">Dicionário</h1>
+  <button class="botao-menu" id="abrirAjustes" aria-label="Ajustes e base offline">Base</button>
+</header>
+
+<main class="palco" id="palco" tabindex="-1">
+  <section class="vazio" id="vazio">
+    <p class="convite">Procure uma palavra.</p>
+    <p class="dica" id="statusBase">Carregando o léxico…</p>
+    <div class="acaso" id="acaso" hidden>
+      <p class="acaso-titulo">Ao acaso</p>
+      <div class="fichas" id="fichas"></div>
+    </div>
+  </section>
+
+  <ol class="sugestoes" id="sugestoes" hidden></ol>
+
+  <article class="verbete" id="verbete" hidden></article>
+</main>
+
+<form class="barra" id="barra" role="search" autocomplete="off">
+  <input class="campo" id="campo" type="search" name="q" enterkeyhint="search"
+         placeholder="palavra" aria-label="Palavra a procurar"
+         autocapitalize="none" autocorrect="off" spellcheck="false">
+  <button class="limpar" id="limpar" type="button" aria-label="Limpar" hidden>×</button>
+</form>
+
+<dialog class="painel" id="ajustes">
+  <h2 class="painel-titulo">Base offline</h2>
+  <dl class="dados" id="dadosBase"></dl>
+  <p class="painel-texto" id="painelTexto">
+    Baixe todas as fatias para consultar sem rede. O download acontece uma vez e fica guardado no aparelho.
+  </p>
+  <div class="progresso" id="progresso" hidden>
+    <div class="progresso-trilho"><div class="progresso-barra" id="progressoBarra"></div></div>
+    <p class="progresso-texto" id="progressoTexto"></p>
+  </div>
+  <div class="painel-acoes">
+    <button class="botao" id="baixarTudo" type="button">Baixar tudo</button>
+    <button class="botao botao-fraco" id="fecharAjustes" type="button">Fechar</button>
+  </div>
+  <p class="creditos" id="creditos"></p>
+</dialog>
+
+<script src="./app.js"></script>
+</body>
+</html>
+
