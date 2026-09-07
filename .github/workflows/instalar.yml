@@ -1,0 +1,13 @@
+name: Instalar o projeto
+
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash montar.sh
