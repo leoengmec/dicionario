@@ -56,9 +56,12 @@
   400000 linhas lidas...
   600000 linhas lidas...
 
-381995 verbetes em 510 fatias · 54.4 MB
-  pronúncia    4.3%
-  etimologia  11.9%
-  sinônimos    4.8%
-  antônimos    1.4%
-735 entradas sem definição e 39 não-palavras descartadas.
+382106 verbetes em 510 fatias · 25.0 MB
+  86536 lemas com definição + 295570 remissões de formas flexionadas
+  cobertura sobre os lemas:
+    pronúncia   18.4%
+    etimologia  52.2%
+    sinônimos   21.2%
+    antônimos    6.4%
+    exemplo     16.9%
+579 entradas sem definição e 39 não-palavras descartadas.

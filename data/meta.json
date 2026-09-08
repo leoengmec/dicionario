@@ -1,14 +1,17 @@
 {
  "versao": "2026-09-08",
- "esquema": 2,
+ "esquema": 3,
  "fonte": "Wikcionário em português via kaikki.org (wiktextract)",
  "licenca": "CC BY-SA 4.0",
- "verbetes": 381995,
+ "verbetes": 382106,
+ "lemas": 86536,
+ "remissoes": 295570,
  "cobertura": {
-  "e": 11.9,
-  "f": 4.3,
-  "s": 4.8,
-  "a": 1.4
+  "e": 52.2,
+  "f": 18.4,
+  "s": 21.2,
+  "a": 6.4,
+  "x": 16.9
  },
  "fatias": [
   "13",
@@ -522,5 +525,5 @@
   "zu",
   "zz"
  ],
- "bytes_verbetes": 57072160
+ "bytes_verbetes": 26218233
 }
