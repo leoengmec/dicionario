@@ -216,10 +216,16 @@ function renderizarVerbete(registro, origem) {
   for (const bloco of registro.c || []) {
     const secao = document.createElement('section');
     secao.className = 'bloco';
-    if (bloco.g) {
+    if (bloco.g || bloco.p) {
       const classe = document.createElement('p');
       classe.className = 'classe';
-      classe.textContent = bloco.g;
+      classe.textContent = bloco.g || '';
+      if (bloco.p) {
+        const selo = document.createElement('span');
+        selo.className = 'selo-pessoal';
+        selo.textContent = 'seu verbete';
+        classe.append(selo);
+      }
       secao.append(classe);
     }
     const lista = document.createElement('ol');
@@ -377,6 +383,7 @@ function preencherPainel() {
   const linhas = [
     ['Lemas', (meta?.lemas || meta?.verbetes || 0).toLocaleString('pt-BR')],
     ['Formas flexionadas', (meta?.remissoes || 0).toLocaleString('pt-BR')],
+    ['Seus verbetes', String(meta?.pessoais || 0)],
     ['Tamanho', formatarBytes(meta?.bytes_verbetes)],
     ['Pronúncia', pct(cob?.f)],
     ['Etimologia', pct(cob?.e)],

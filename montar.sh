@@ -53,6 +53,9 @@ if [ "$SALTAR" != "1" ]; then
   fi
 fi
 
+echo "==> mesclando os verbetes pessoais (etl/meus-verbetes.txt)"
+python3 etl/mesclar_pessoal.py
+
 echo "==> conferindo a base"
 python3 -c "
 import json

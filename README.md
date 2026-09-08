@@ -64,6 +64,14 @@ A cobertura real de cada campo fica em `data/meta.json` e aparece no painel
 no log sob quais chaves cada dado está vindo — o wiktextract muda esses nomes
 entre extratores, então medimos em vez de supor.
 
+## Seus próprios verbetes
+
+Edite `etl/meus-verbetes.txt` — pelo app do GitHub mesmo — e rode o workflow.
+O formato está documentado no cabeçalho do arquivo: texto puro, um bloco por
+palavra, campos `palavra`, `classe`, `def`, `sin`, `ant`, `ex`, `etim`, `pron`.
+Palavras que já existem no Wikcionário ganham o seu bloco na frente; as que não
+existem viram verbetes novos. Apagar o bloco e rodar de novo remove.
+
 ## Escopo
 
 v1.0: busca e offline. v1.1: pronúncia, etimologia, sinônimos, antônimos.

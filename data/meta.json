@@ -3,7 +3,7 @@
  "esquema": 3,
  "fonte": "Wikcionário em português via kaikki.org (wiktextract)",
  "licenca": "CC BY-SA 4.0",
- "verbetes": 382106,
+ "verbetes": 382108,
  "lemas": 86536,
  "remissoes": 295570,
  "cobertura": {
@@ -525,5 +525,6 @@
   "zu",
   "zz"
  ],
- "bytes_verbetes": 26218233
+ "bytes_verbetes": 26219257,
+ "pessoais": 3
 }

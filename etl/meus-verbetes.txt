@@ -1,0 +1,39 @@
+# Meus verbetes
+#
+# Um verbete por bloco. Blocos separados por linha em branco.
+# Linhas que começam com # são ignoradas.
+#
+# Campos (só "palavra" e uma "def" são obrigatórios):
+#   palavra:  a entrada
+#   classe:   s. / v. / adj. / adv. / loc. ...
+#   def:      uma acepção (repita a linha para mais de uma)
+#   sin:      sinônimos separados por ;
+#   ant:      antônimos separados por ;
+#   ex:       uma frase de exemplo
+#   etim:     etimologia
+#   pron:     pronúncia em AFI
+#
+# Se a palavra já existir no Wikcionário, o seu bloco aparece primeiro
+# e os sinônimos se somam. Se não existir, vira verbete novo.
+# Para remover um verbete seu, apague o bloco e rode o workflow.
+
+palavra: chiller
+classe: s.
+def: Máquina que resfria água para climatização central de grande porte.
+def: Coração de um sistema de água gelada; alimenta fancoils e UTAs.
+sin: resfriador de líquido; unidade resfriadora de água
+ex: O chiller a parafuso entra em carga parcial quando a demanda térmica cai.
+etim: Do inglês chill, "resfriar".
+
+palavra: fancoil
+classe: s.
+def: Unidade terminal com serpentina e ventilador que troca calor com a água gelada e insufla ar no ambiente.
+sin: ventiloconvector
+ex: Cada sala de audiência tem um fancoil de teto ligado à rede de água gelada.
+
+palavra: exegese
+classe: s.
+def: Interpretação crítica e minuciosa de um texto, em especial das Escrituras.
+sin: hermenêutica; interpretação
+ant: eisegese
+etim: Do grego exḗgēsis, "explicação, condução para fora".
