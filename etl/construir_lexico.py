@@ -3,17 +3,18 @@
 Constrói o léxico offline do app a partir da extração do Wikcionário-PT
 publicada por kaikki.org (formato JSONL, produzido pelo wiktextract).
 
-Entrada esperada:
-    https://kaikki.org/ptwiktionary/  ->  arquivo .jsonl ou .jsonl.gz
-
 Saída (dentro de ../data):
-    indice.json          lista de todas as entradas (para busca e sugestões)
-    meta.json            versão, contagens e lista de fatias
+    indice.json          lista de todas as entradas (busca e sugestões)
+    meta.json            versão, esquema, contagens, cobertura, fatias
     verbetes/<xx>.json   fatias com o conteúdo dos verbetes
+
+Esquema de um verbete:
+    w  palavra        c  [{g: classe, d: [acepções]}]
+    f  pronúncia      e  etimologia
+    s  sinônimos      a  antônimos
 
 Uso:
     python3 construir_lexico.py --entrada pt-extract.jsonl.gz
-    python3 construir_lexico.py --entrada pt.jsonl --max-sentidos 2 --sem-etimologia
 """
 
 import argparse
@@ -27,101 +28,157 @@ import unicodedata
 from collections import defaultdict
 from datetime import date
 
+ESQUEMA = 2
+
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DESTINO = os.path.normpath(os.path.join(RAIZ, "..", "data"))
 
-# classes gramaticais em abreviatura lexicográfica
 CLASSES = {
-    "noun": "s.",
-    "verb": "v.",
-    "adj": "adj.",
-    "adv": "adv.",
-    "pron": "pron.",
-    "prep": "prep.",
-    "conj": "conj.",
-    "num": "num.",
-    "intj": "interj.",
-    "article": "art.",
-    "det": "det.",
-    "name": "s. próprio",
-    "phrase": "loc.",
-    "prefix": "pref.",
-    "suffix": "suf.",
-    "contraction": "contr.",
-    "abbrev": "abrev.",
+    "noun": "s.", "verb": "v.", "adj": "adj.", "adv": "adv.", "pron": "pron.",
+    "prep": "prep.", "conj": "conj.", "num": "num.", "intj": "interj.",
+    "article": "art.", "det": "det.", "name": "s. próprio", "phrase": "loc.",
+    "prefix": "pref.", "suffix": "suf.", "contraction": "contr.",
+    "abbrev": "abrev.", "character": "caráct.", "symbol": "símb.",
 }
 
+# O wiktextract não usa os mesmos nomes de campo em todos os extratores.
+# Em vez de assumir um, tentamos todos e ficamos com o primeiro que existir.
+CHAVES_ETIMOLOGIA = ("etymology_text", "etymology_texts", "etymology", "etym")
+CHAVES_SINONIMO = ("synonyms", "synonym", "syn")
+CHAVES_ANTONIMO = ("antonyms", "antonym", "ant")
+CHAVES_SOM = ("ipa", "IPA", "phonetic", "other")
+
 LIXO_INICIAL = re.compile(r"^\s*(?:\(|\[)?\s*(?:forma|flexão)\b", re.I)
+TEM_LETRA = re.compile(r"[^\W\d_]", re.UNICODE)
 
 
-def sem_acento(texto: str) -> str:
-    decomposto = unicodedata.normalize("NFD", texto.lower())
-    return "".join(c for c in decomposto if unicodedata.category(c) != "Mn")
+def sem_acento(texto):
+    d = unicodedata.normalize("NFD", texto.lower())
+    return "".join(c for c in d if unicodedata.category(c) != "Mn")
 
 
-def chave_fatia(palavra: str) -> str:
-    """Duas primeiras letras normalizadas; o resto vai para a fatia '_'."""
+def chave_fatia(palavra):
     base = re.sub(r"[^a-z0-9]", "", sem_acento(palavra))
     if not base:
         return "_"
-    if len(base) == 1:
-        return base + "_"
-    return base[:2]
+    return base[:2] if len(base) > 1 else base + "_"
 
 
-def abrir(caminho: str):
+def abrir(caminho):
     if caminho.endswith(".gz"):
         return io.TextIOWrapper(gzip.open(caminho, "rb"), encoding="utf-8")
     return open(caminho, "r", encoding="utf-8")
 
 
-def limpar_glosa(texto: str) -> str:
-    texto = re.sub(r"\s+", " ", texto or "").strip()
-    texto = texto.rstrip(" ;,")
-    return texto
+def limpar(texto):
+    if not isinstance(texto, str):
+        return ""
+    return re.sub(r"\s+", " ", texto).strip().rstrip(" ;,")
 
 
-def main() -> int:
+def primeiro_texto(reg, chaves):
+    """Aceita o campo como texto ou como lista de textos."""
+    for chave in chaves:
+        valor = reg.get(chave)
+        if isinstance(valor, str) and valor.strip():
+            return limpar(valor)
+        if isinstance(valor, list):
+            juntos = " ".join(limpar(v) for v in valor if isinstance(v, str))
+            if juntos.strip():
+                return limpar(juntos)
+    return ""
+
+
+def colher_palavras(reg, chaves):
+    """Aceita ['x'] ou [{'word': 'x'}], no topo do registro e dentro de senses."""
+    achadas = []
+
+    def absorver(valor):
+        if isinstance(valor, str):
+            achadas.append(valor)
+        elif isinstance(valor, list):
+            for item in valor:
+                if isinstance(item, str):
+                    achadas.append(item)
+                elif isinstance(item, dict):
+                    for campo in ("word", "term", "text", "sense"):
+                        if isinstance(item.get(campo), str):
+                            achadas.append(item[campo])
+                            break
+
+    for chave in chaves:
+        absorver(reg.get(chave))
+    for sentido in reg.get("senses", []) or []:
+        for chave in chaves:
+            absorver(sentido.get(chave))
+
+    limpas, vistas = [], set()
+    for p in achadas:
+        p = limpar(p)
+        if not p or len(p) > 40 or p in vistas:
+            continue
+        vistas.add(p)
+        limpas.append(p)
+    return limpas
+
+
+def colher_pronuncia(reg):
+    for som in reg.get("sounds", []) or []:
+        if not isinstance(som, dict):
+            continue
+        for chave in CHAVES_SOM:
+            valor = som.get(chave)
+            if isinstance(valor, str) and valor.strip():
+                return limpar(valor)
+    return ""
+
+
+def main():
     ap = argparse.ArgumentParser(description="Gera o léxico offline do dicionário.")
-    ap.add_argument("--entrada", required=True, help="dump .jsonl ou .jsonl.gz do kaikki")
-    ap.add_argument("--destino", default=DESTINO, help="pasta de saída (padrão: ../data)")
-    ap.add_argument("--idioma", default="pt", help="código do idioma a manter (padrão: pt)")
-    ap.add_argument("--max-sentidos", type=int, default=4, help="acepções por classe gramatical")
-    ap.add_argument("--max-classes", type=int, default=4, help="classes gramaticais por palavra")
-    ap.add_argument("--sem-etimologia", action="store_true", help="descarta etimologia (arquivo menor)")
-    ap.add_argument("--sem-fonetica", action="store_true", help="descarta transcrição AFI")
-    ap.add_argument("--incluir-flexoes", action="store_true",
-                    help="mantém verbetes que são apenas formas flexionadas")
+    ap.add_argument("--entrada", required=True)
+    ap.add_argument("--destino", default=DESTINO)
+    ap.add_argument("--idioma", default="pt")
+    ap.add_argument("--max-sentidos", type=int, default=4)
+    ap.add_argument("--max-classes", type=int, default=4)
+    ap.add_argument("--max-relacionadas", type=int, default=12)
+    ap.add_argument("--sem-etimologia", action="store_true")
+    ap.add_argument("--sem-fonetica", action="store_true")
+    ap.add_argument("--sem-relacionadas", action="store_true")
+    ap.add_argument("--manter-nao-palavras", action="store_true",
+                    help="mantém entradas sem nenhuma letra (números, símbolos)")
+    ap.add_argument("--incluir-flexoes", action="store_true")
     args = ap.parse_args()
 
-    verbetes: dict[str, dict] = {}
-    lidas = descartadas = 0
+    verbetes = {}
+    lidas = sem_definicao = descartadas = 0
+    achou = {"e": 0, "f": 0, "s": 0, "a": 0}
 
     with abrir(args.entrada) as fonte:
         for linha in fonte:
-            linha = linha.strip()
-            if not linha or linha[0] != "{":
+            if not linha.startswith("{"):
                 continue
             lidas += 1
-            if lidas % 200_000 == 0:
-                print(f"  {lidas:>9,} linhas lidas...".replace(",", "."), file=sys.stderr)
+            if lidas % 200000 == 0:
+                print("  %d linhas lidas..." % lidas, file=sys.stderr)
 
             try:
                 reg = json.loads(linha)
             except json.JSONDecodeError:
                 continue
-
             if reg.get("lang_code") != args.idioma:
                 continue
 
             palavra = (reg.get("word") or "").strip()
             if not palavra or len(palavra) > 60:
                 continue
+            if not args.manter_nao_palavras and not TEM_LETRA.search(palavra):
+                descartadas += 1
+                continue
 
             glosas = []
-            for sentido in reg.get("senses", []):
+            for sentido in reg.get("senses", []) or []:
                 for g in sentido.get("glosses") or []:
-                    g = limpar_glosa(g)
+                    g = limpar(g)
                     if not g:
                         continue
                     if not args.incluir_flexoes and LIXO_INICIAL.match(g):
@@ -132,50 +189,72 @@ def main() -> int:
                     break
 
             if not glosas:
-                descartadas += 1
+                sem_definicao += 1
                 continue
 
             classe = CLASSES.get(reg.get("pos", ""), reg.get("pos") or "")
             registro = verbetes.setdefault(palavra, {"w": palavra, "c": []})
 
-            existente = next((b for b in registro["c"] if b["g"] == classe), None)
-            if existente:
+            bloco = None
+            for b in registro["c"]:
+                if b["g"] == classe:
+                    bloco = b
+                    break
+            if bloco:
                 for g in glosas:
-                    if g not in existente["d"] and len(existente["d"]) < args.max_sentidos:
-                        existente["d"].append(g)
+                    if g not in bloco["d"] and len(bloco["d"]) < args.max_sentidos:
+                        bloco["d"].append(g)
             elif len(registro["c"]) < args.max_classes:
                 registro["c"].append({"g": classe, "d": glosas[: args.max_sentidos]})
 
             if not args.sem_fonetica and "f" not in registro:
-                for som in reg.get("sounds", []) or []:
-                    if som.get("ipa"):
-                        registro["f"] = som["ipa"]
-                        break
+                afi = colher_pronuncia(reg)
+                if afi:
+                    registro["f"] = afi
+                    achou["f"] += 1
 
             if not args.sem_etimologia and "e" not in registro:
-                etm = limpar_glosa(reg.get("etymology_text") or "")
-                if etm and len(etm) < 400:
+                etm = primeiro_texto(reg, CHAVES_ETIMOLOGIA)
+                if etm and len(etm) < 500:
                     registro["e"] = etm
+                    achou["e"] += 1
+
+            if not args.sem_relacionadas:
+                for campo, chaves in (("s", CHAVES_SINONIMO), ("a", CHAVES_ANTONIMO)):
+                    novas = colher_palavras(reg, chaves)
+                    if not novas:
+                        continue
+                    atual = registro.setdefault(campo, [])
+                    estreou = not atual
+                    for p in novas:
+                        if p != palavra and p not in atual and len(atual) < args.max_relacionadas:
+                            atual.append(p)
+                    if estreou and atual:
+                        achou[campo] += 1
 
     if not verbetes:
         print("Nenhum verbete encontrado. Confira --entrada e --idioma.", file=sys.stderr)
         return 1
 
-    # fatiamento
-    fatias: dict[str, list] = defaultdict(list)
+    for registro in verbetes.values():
+        for campo in ("s", "a"):
+            if campo in registro and not registro[campo]:
+                del registro[campo]
+
+    fatias = defaultdict(list)
     for palavra, registro in verbetes.items():
         fatias[chave_fatia(palavra)].append(registro)
 
-    pasta_verbetes = os.path.join(args.destino, "verbetes")
-    os.makedirs(pasta_verbetes, exist_ok=True)
-    for antigo in os.listdir(pasta_verbetes):
+    pasta = os.path.join(args.destino, "verbetes")
+    os.makedirs(pasta, exist_ok=True)
+    for antigo in os.listdir(pasta):
         if antigo.endswith(".json"):
-            os.remove(os.path.join(pasta_verbetes, antigo))
+            os.remove(os.path.join(pasta, antigo))
 
     bytes_totais = 0
     for chave, lista in fatias.items():
         lista.sort(key=lambda r: sem_acento(r["w"]))
-        caminho = os.path.join(pasta_verbetes, f"{chave}.json")
+        caminho = os.path.join(pasta, chave + ".json")
         with open(caminho, "w", encoding="utf-8") as saida:
             json.dump(lista, saida, ensure_ascii=False, separators=(",", ":"))
         bytes_totais += os.path.getsize(caminho)
@@ -184,24 +263,32 @@ def main() -> int:
     with open(os.path.join(args.destino, "indice.json"), "w", encoding="utf-8") as saida:
         json.dump(indice, saida, ensure_ascii=False, separators=(",", ":"))
 
+    total = len(verbetes)
+    cobertura = dict((k, round(100.0 * v / total, 1)) for k, v in achou.items())
     meta = {
         "versao": date.today().isoformat(),
+        "esquema": ESQUEMA,
         "fonte": "Wikcionário em português via kaikki.org (wiktextract)",
         "licenca": "CC BY-SA 4.0",
-        "verbetes": len(verbetes),
+        "verbetes": total,
+        "cobertura": cobertura,
         "fatias": sorted(fatias.keys()),
         "bytes_verbetes": bytes_totais,
     }
     with open(os.path.join(args.destino, "meta.json"), "w", encoding="utf-8") as saida:
         json.dump(meta, saida, ensure_ascii=False, indent=1)
 
-    mb = bytes_totais / 1_048_576
-    print(f"\n{len(verbetes):,} verbetes em {len(fatias)} fatias · {mb:.1f} MB".replace(",", "."))
-    print(f"{descartadas:,} entradas sem definição foram descartadas.".replace(",", "."))
-    print(f"Saída em {args.destino}")
+    print("\n%d verbetes em %d fatias · %.1f MB" % (total, len(fatias), bytes_totais / 1048576))
+    print("  pronúncia  %5s%%" % cobertura["f"])
+    print("  etimologia %5s%%" % cobertura["e"])
+    print("  sinônimos  %5s%%" % cobertura["s"])
+    print("  antônimos  %5s%%" % cobertura["a"])
+    print("%d entradas sem definição e %d não-palavras descartadas." % (sem_definicao, descartadas))
+    if cobertura["e"] < 1 or cobertura["s"] < 1:
+        print("\nATENÇÃO: cobertura quase nula em algum campo. Veja o censo acima\n"
+              "para descobrir sob qual chave o dado está vindo.", file=sys.stderr)
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

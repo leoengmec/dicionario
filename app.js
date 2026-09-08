@@ -226,6 +226,27 @@ function renderizarVerbete(registro) {
     el.verbete.append(secao);
   }
 
+  for (const [campo, rotulo] of [['s', 'Sinônimos'], ['a', 'Antônimos']]) {
+    const palavras = registro[campo];
+    if (!palavras || !palavras.length) continue;
+    const secao = document.createElement('section');
+    secao.className = 'relacionadas';
+    const titulo = document.createElement('p');
+    titulo.className = 'relacionadas-titulo';
+    titulo.textContent = rotulo;
+    const fichas = document.createElement('div');
+    fichas.className = 'fichas';
+    for (const palavra of palavras) {
+      const ficha = document.createElement('button');
+      ficha.className = 'ficha';
+      ficha.type = 'button';
+      ficha.textContent = palavra;
+      fichas.append(ficha);
+    }
+    secao.append(titulo, fichas);
+    el.verbete.append(secao);
+  }
+
   if (registro.e) {
     const etm = document.createElement('p');
     etm.className = 'etimologia';
@@ -310,13 +331,16 @@ el.sugestoes.addEventListener('keydown', (evento) => {
   if (item) abrirPalavra(item.dataset.palavra);
 });
 
-el.fichas.addEventListener('click', (evento) => {
+function aoTocarFicha(evento) {
   const ficha = evento.target.closest('.ficha');
   if (!ficha) return;
   el.campo.value = ficha.textContent;
   el.limpar.hidden = false;
   abrirPalavra(ficha.textContent);
-});
+}
+
+el.fichas.addEventListener('click', aoTocarFicha);
+el.verbete.addEventListener('click', aoTocarFicha);
 
 /* --------------------------------------------------------------- ajustes */
 
@@ -329,10 +353,15 @@ function formatarBytes(bytes) {
 function preencherPainel() {
   const meta = estado.meta;
   el.dadosBase.replaceChildren();
+  const cob = meta?.cobertura;
+  const pct = (v) => (typeof v === 'number' ? `${v}%` : '—');
   const linhas = [
     ['Verbetes', (meta?.verbetes || 0).toLocaleString('pt-BR')],
-    ['Fatias', String(meta?.fatias?.length || 0)],
     ['Tamanho', formatarBytes(meta?.bytes_verbetes)],
+    ['Pronúncia', pct(cob?.f)],
+    ['Etimologia', pct(cob?.e)],
+    ['Sinônimos', pct(cob?.s)],
+    ['Antônimos', pct(cob?.a)],
     ['Versão', meta?.versao || '—'],
   ];
   for (const [rotulo, valor] of linhas) {
@@ -430,4 +459,3 @@ if ('serviceWorker' in navigator) {
 }
 
 iniciar();
-

@@ -381,3 +381,14 @@ body {
   * { transition: none !important; animation: none !important; }
 }
 
+/* ---- sinônimos e antônimos dentro do verbete ---- */
+
+.relacionadas { margin-top: 1.5rem; }
+
+.relacionadas-titulo {
+  font-family: var(--serifa);
+  font-style: italic;
+  font-size: 0.9375rem;
+  color: var(--tinta-fraca);
+  margin: 0 0 0.5rem;
+}

@@ -53,7 +53,18 @@ etl/gerar_amostra.py  65 verbetes de demonstração, reserva se o dump falhar
 - **Tipografia nativa.** Serifa do sistema (New York no iOS) para o conteúdo,
   sans para a interface. Nenhuma fonte baixada.
 
-## Escopo da v1.0
+## O que cada verbete traz
 
-Busca e offline. Fora desta versão: favoritos, histórico, notas, sinônimos.
+Palavra, classe gramatical e acepções numeradas; e, quando o Wikcionário
+registra, pronúncia em AFI, etimologia, sinônimos e antônimos. Sinônimos e
+antônimos são tocáveis: levam direto ao verbete correspondente.
 
+A cobertura real de cada campo fica em `data/meta.json` e aparece no painel
+**Base** dentro do app. O `etl/inspecionar_dump.py` roda antes do ETL e imprime
+no log sob quais chaves cada dado está vindo — o wiktextract muda esses nomes
+entre extratores, então medimos em vez de supor.
+
+## Escopo
+
+v1.0: busca e offline. v1.1: pronúncia, etimologia, sinônimos, antônimos.
+Fora por enquanto: favoritos, histórico, notas.
