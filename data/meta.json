@@ -1,33 +1,23 @@
 {
- "versao": "2026-09-07",
+ "versao": "2026-09-08",
+ "esquema": 2,
  "fonte": "Wikcionário em português via kaikki.org (wiktextract)",
  "licenca": "CC BY-SA 4.0",
- "verbetes": 382031,
+ "verbetes": 381995,
+ "cobertura": {
+  "e": 11.9,
+  "f": 4.3,
+  "s": 4.8,
+  "a": 1.4
+ },
  "fatias": [
-  "00",
-  "08",
-  "10",
   "13",
-  "16",
-  "17",
-  "1_",
   "1p",
-  "20",
   "2p",
-  "30",
   "3d",
   "3g",
   "3p",
-  "40",
   "4x",
-  "50",
-  "60",
-  "66",
-  "69",
-  "6_",
-  "70",
-  "80",
-  "90",
   "_",
   "a3",
   "a_",
@@ -532,5 +522,5 @@
   "zu",
   "zz"
  ],
- "bytes_verbetes": 54042122
+ "bytes_verbetes": 57072160
 }

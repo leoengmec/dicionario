@@ -1,0 +1,64 @@
+
+===== censo de 30000 entradas em 'pt' =====
+
+-- chaves no topo do registro --
+  word                     100.0%   texto
+  lang_code                100.0%   texto
+  lang                     100.0%   texto
+  pos                      100.0%   texto
+  pos_title                100.0%   texto
+  senses                   100.0%   lista de objetos: examples,glosses
+  categories               100.0%   lista de textos
+  tags                      68.4%   lista de textos
+  etymology_texts           57.7%   lista de textos
+  sounds                    41.6%   lista de objetos: ipa,raw_tags,tags
+  translations              38.4%   lista de objetos: lang,lang_code,word
+  synonyms                  18.4%   lista de objetos: tags,word
+  forms                     14.1%   lista de objetos: form,tags
+  anagrams                  11.4%   lista de objetos: word
+  expressions                7.0%   lista de objetos: senses,word
+  derived                    6.0%   lista de objetos: word
+  antonyms                   3.9%   lista de objetos: sense,sense_index,word
+  raw_tags                   2.8%   lista de textos
+  attestations               1.9%   lista de objetos: date
+  notes                      0.7%   lista de textos
+  paronyms                   0.3%   lista de objetos: word
+  related                    0.2%   lista de objetos: word
+  homonyms                   0.1%   lista de objetos: word
+  phraseology                0.1%   lista de objetos: sense,sense_index,word
+  homophones                 0.1%   lista de objetos: word
+  hypernyms                  0.1%   lista de objetos: word
+  hyponyms                   0.0%   lista de objetos: word
+  cognates                   0.0%   lista de objetos: lang,lang_code,sense,word
+  descendants                0.0%   lista de objetos: lang,lang_code,word
+  abbreviations              0.0%   lista de objetos: word
+
+-- chaves dentro de senses --
+  glosses                    61731   lista de textos
+  categories                 13782   lista de textos
+  tags                        9424   lista de textos
+  examples                    8780   lista de objetos: bold_text_offsets,text
+  raw_tags                    6352   lista de textos
+  topics                      4752   lista de textos
+  form_of                     3609   lista de objetos: word
+
+-- primeiro valor visto, nos campos que nos interessam --
+  etymology_text: ausente no topo
+  etymology_texts: ["Do latim excerptu⁽ˡᵃ⁾ “colhido de”."]
+  etymology: ausente no topo
+  sounds: [{"ipa": "/e.\"sEx.tu/", "tags": ["Brazil"], "raw_tags": ["SAMPA"]}, {"ipa": "/esˈertu/", "tags": ["Brazil", "
+  synonyms: [{"word": "peluche", "tags": ["Portugal"]}, {"word": "urso de pelúcia", "tags": ["Brazil"]}, {"word": "ursinho
+  antonyms: [{"word": "ordem", "sense": "confusão, desordem", "sense_index": 2}]
+  related: [{"word": "mata-burro"}, {"word": "passarela"}, {"word": "passarela de pedestres"}, {"word": "ponte-canal"}, {
+  hypernyms: [{"word": "objetificação"}]
+
+  200000 linhas lidas...
+  400000 linhas lidas...
+  600000 linhas lidas...
+
+381995 verbetes em 510 fatias · 54.4 MB
+  pronúncia    4.3%
+  etimologia  11.9%
+  sinônimos    4.8%
+  antônimos    1.4%
+735 entradas sem definição e 39 não-palavras descartadas.
