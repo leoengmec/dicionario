@@ -12,6 +12,7 @@ Esquema de um verbete:
     w  palavra        c  [{g: classe, d: [acepções]}]
     f  pronúncia      e  etimologia
     s  sinônimos      a  antônimos
+    x  exemplo        r  remissão (forma flexionada -> lema)
 
 Uso:
     python3 construir_lexico.py --entrada pt-extract.jsonl.gz
@@ -28,7 +29,7 @@ import unicodedata
 from collections import defaultdict
 from datetime import date
 
-ESQUEMA = 2
+ESQUEMA = 3
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DESTINO = os.path.normpath(os.path.join(RAIZ, "..", "data"))
@@ -123,13 +124,44 @@ def colher_palavras(reg, chaves):
 
 
 def colher_pronuncia(reg):
+    """Prefere AFI do Brasil; ignora notação SAMPA."""
+    candidatos = []
     for som in reg.get("sounds", []) or []:
         if not isinstance(som, dict):
+            continue
+        etiquetas = " ".join(som.get("tags", []) + som.get("raw_tags", [])).lower()
+        if "sampa" in etiquetas:
             continue
         for chave in CHAVES_SOM:
             valor = som.get(chave)
             if isinstance(valor, str) and valor.strip():
-                return limpar(valor)
+                pontos = 2 if "brazil" in etiquetas or "brasil" in etiquetas else 1
+                candidatos.append((pontos, limpar(valor)))
+                break
+    if not candidatos:
+        return ""
+    candidatos.sort(key=lambda c: -c[0])
+    return candidatos[0][1]
+
+
+def colher_remissao(sentido):
+    """Alvo de uma forma flexionada, se a acepção for form_of."""
+    alvos = sentido.get("form_of")
+    if isinstance(alvos, list):
+        for alvo in alvos:
+            if isinstance(alvo, dict) and isinstance(alvo.get("word"), str):
+                return limpar(alvo["word"])
+            if isinstance(alvo, str):
+                return limpar(alvo)
+    return ""
+
+
+def colher_exemplo(sentido):
+    for ex in sentido.get("examples", []) or []:
+        texto = ex.get("text") if isinstance(ex, dict) else ex
+        texto = limpar(texto)
+        if 12 <= len(texto) <= 180:
+            return texto
     return ""
 
 
@@ -150,8 +182,8 @@ def main():
     args = ap.parse_args()
 
     verbetes = {}
-    lidas = sem_definicao = descartadas = 0
-    achou = {"e": 0, "f": 0, "s": 0, "a": 0}
+    lidas = sem_definicao = descartadas = remissoes = 0
+    achou = {"e": 0, "f": 0, "s": 0, "a": 0, "x": 0}
 
     with abrir(args.entrada) as fonte:
         for linha in fonte:
@@ -176,7 +208,13 @@ def main():
                 continue
 
             glosas = []
+            remissao = ""
+            exemplo = ""
             for sentido in reg.get("senses", []) or []:
+                alvo = colher_remissao(sentido)
+                if alvo and not args.incluir_flexoes:
+                    remissao = remissao or alvo
+                    continue
                 for g in sentido.get("glosses") or []:
                     g = limpar(g)
                     if not g:
@@ -185,15 +223,28 @@ def main():
                         continue
                     if g not in glosas:
                         glosas.append(g)
+                if not exemplo:
+                    exemplo = colher_exemplo(sentido)
                 if len(glosas) >= args.max_sentidos:
                     break
 
             if not glosas:
-                sem_definicao += 1
+                if remissao and remissao != palavra:
+                    registro = verbetes.setdefault(palavra, {"w": palavra, "c": []})
+                    if not registro["c"] and "r" not in registro:
+                        registro["r"] = remissao
+                        remissoes += 1
+                else:
+                    sem_definicao += 1
                 continue
 
             classe = CLASSES.get(reg.get("pos", ""), reg.get("pos") or "")
             registro = verbetes.setdefault(palavra, {"w": palavra, "c": []})
+            registro.pop("r", None)
+
+            if exemplo and "x" not in registro:
+                registro["x"] = exemplo
+                achou["x"] += 1
 
             bloco = None
             for b in registro["c"]:
@@ -240,6 +291,8 @@ def main():
         for campo in ("s", "a"):
             if campo in registro and not registro[campo]:
                 del registro[campo]
+        if not registro["c"]:
+            del registro["c"]
 
     fatias = defaultdict(list)
     for palavra, registro in verbetes.items():
@@ -264,13 +317,16 @@ def main():
         json.dump(indice, saida, ensure_ascii=False, separators=(",", ":"))
 
     total = len(verbetes)
-    cobertura = dict((k, round(100.0 * v / total, 1)) for k, v in achou.items())
+    lemas = sum(1 for r in verbetes.values() if r.get("c"))
+    cobertura = dict((k, round(100.0 * v / max(lemas, 1), 1)) for k, v in achou.items())
     meta = {
         "versao": date.today().isoformat(),
         "esquema": ESQUEMA,
         "fonte": "Wikcionário em português via kaikki.org (wiktextract)",
         "licenca": "CC BY-SA 4.0",
         "verbetes": total,
+        "lemas": lemas,
+        "remissoes": total - lemas,
         "cobertura": cobertura,
         "fatias": sorted(fatias.keys()),
         "bytes_verbetes": bytes_totais,
@@ -279,10 +335,13 @@ def main():
         json.dump(meta, saida, ensure_ascii=False, indent=1)
 
     print("\n%d verbetes em %d fatias · %.1f MB" % (total, len(fatias), bytes_totais / 1048576))
-    print("  pronúncia  %5s%%" % cobertura["f"])
-    print("  etimologia %5s%%" % cobertura["e"])
-    print("  sinônimos  %5s%%" % cobertura["s"])
-    print("  antônimos  %5s%%" % cobertura["a"])
+    print("  %d lemas com definição + %d remissões de formas flexionadas" % (lemas, total - lemas))
+    print("  cobertura sobre os lemas:")
+    print("    pronúncia  %5s%%" % cobertura["f"])
+    print("    etimologia %5s%%" % cobertura["e"])
+    print("    sinônimos  %5s%%" % cobertura["s"])
+    print("    antônimos  %5s%%" % cobertura["a"])
+    print("    exemplo    %5s%%" % cobertura["x"])
     print("%d entradas sem definição e %d não-palavras descartadas." % (sem_definicao, descartadas))
     if cobertura["e"] < 1 or cobertura["s"] < 1:
         print("\nATENÇÃO: cobertura quase nula em algum campo. Veja o censo acima\n"

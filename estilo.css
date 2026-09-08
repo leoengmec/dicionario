@@ -392,3 +392,24 @@ body {
   color: var(--tinta-fraca);
   margin: 0 0 0.5rem;
 }
+
+/* ---- remissão e exemplo ---- */
+
+.remissao {
+  font-family: var(--serifa);
+  font-style: italic;
+  font-size: 0.9375rem;
+  color: var(--tinta-fraca);
+  margin: 0 0 0.35rem;
+}
+
+.exemplo {
+  font-family: var(--serifa);
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--tinta-fraca);
+  margin: 1.2rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--linha);
+}

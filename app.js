@@ -191,8 +191,15 @@ function renderizarSugestoes(lista, consulta) {
   mostrar('sugestoes');
 }
 
-function renderizarVerbete(registro) {
+function renderizarVerbete(registro, origem) {
   el.verbete.replaceChildren();
+
+  if (origem) {
+    const nota = document.createElement('p');
+    nota.className = 'remissao';
+    nota.textContent = `${origem} é forma de`;
+    el.verbete.append(nota);
+  }
 
   const cabeca = document.createElement('h2');
   cabeca.className = 'cabeca';
@@ -224,6 +231,13 @@ function renderizarVerbete(registro) {
     }
     secao.append(lista);
     el.verbete.append(secao);
+  }
+
+  if (registro.x) {
+    const exemplo = document.createElement('p');
+    exemplo.className = 'exemplo';
+    exemplo.textContent = registro.x;
+    el.verbete.append(exemplo);
   }
 
   for (const [campo, rotulo] of [['s', 'Sinônimos'], ['a', 'Antônimos']]) {
@@ -263,11 +277,16 @@ function renderizarVerbete(registro) {
   window.scrollTo({ top: 0 });
 }
 
-async function abrirPalavra(palavra) {
+async function abrirPalavra(palavra, origem) {
   try {
     const registro = await obterVerbete(palavra);
-    if (registro) renderizarVerbete(registro);
-    else renderizarSugestoes([], palavra);
+    if (!registro) {
+      renderizarSugestoes([], palavra);
+    } else if (registro.r && !origem) {
+      await abrirPalavra(registro.r, palavra);
+    } else {
+      renderizarVerbete(registro, origem);
+    }
   } catch (erro) {
     el.verbete.replaceChildren();
     const aviso = document.createElement('p');
@@ -356,12 +375,14 @@ function preencherPainel() {
   const cob = meta?.cobertura;
   const pct = (v) => (typeof v === 'number' ? `${v}%` : '—');
   const linhas = [
-    ['Verbetes', (meta?.verbetes || 0).toLocaleString('pt-BR')],
+    ['Lemas', (meta?.lemas || meta?.verbetes || 0).toLocaleString('pt-BR')],
+    ['Formas flexionadas', (meta?.remissoes || 0).toLocaleString('pt-BR')],
     ['Tamanho', formatarBytes(meta?.bytes_verbetes)],
     ['Pronúncia', pct(cob?.f)],
     ['Etimologia', pct(cob?.e)],
     ['Sinônimos', pct(cob?.s)],
     ['Antônimos', pct(cob?.a)],
+    ['Exemplos', pct(cob?.x)],
     ['Versão', meta?.versao || '—'],
   ];
   for (const [rotulo, valor] of linhas) {

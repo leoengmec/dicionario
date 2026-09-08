@@ -4,7 +4,7 @@
 # As fontes do app ficam versionadas no repositorio; este script nao as toca.
 set -euo pipefail
 
-ESQUEMA=2
+ESQUEMA=3
 
 lexico_atual() {
   [ -f data/meta.json ] || return 1
